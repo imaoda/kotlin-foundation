@@ -68,6 +68,30 @@ class CloseableGroupTest {
     }
 
     @Test
+    fun repeatedSuppressedFailuresAreDeduplicatedByIdentityInFirstOccurrenceOrder() {
+        class EqualFailure(message: String) : IllegalStateException(message) {
+            override fun equals(other: Any?): Boolean = other is EqualFailure
+            override fun hashCode(): Int = 0
+        }
+        val group = CloseableGroup()
+        val first = EqualFailure("first")
+        val repeated = EqualFailure("repeated")
+        val equalButDistinct = EqualFailure("equal but distinct")
+        val failures = listOf(first, repeated, repeated, equalButDistinct, repeated)
+        val closed = mutableListOf<Int>()
+        for ((index, failure) in failures.withIndex().reversed()) {
+            group.add(AutoCloseable { closed.add(index); throw failure })
+        }
+
+        assertSame(first, assertFailsWith<IllegalStateException> { group.close() })
+
+        assertEquals(listOf(0, 1, 2, 3, 4), closed)
+        assertEquals(2, first.suppressedExceptions.size)
+        assertSame(repeated, first.suppressedExceptions[0])
+        assertSame(equalButDistinct, first.suppressedExceptions[1])
+    }
+
+    @Test
     fun terminalRegistrationClosesNewResourceAndRejectsIt() {
         val group = CloseableGroup()
         group.close()

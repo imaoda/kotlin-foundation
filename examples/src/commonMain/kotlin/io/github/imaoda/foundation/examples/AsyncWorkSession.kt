@@ -87,6 +87,15 @@ internal class AsyncWorkSession(
         } catch (cancelled: CancellationException) {
             cancellation = cancelled
             throw cancelled
+        } catch (failure: Throwable) {
+            // A completed Deferred can throw its failure before checking caller cancellation.
+            // Preserve that cancellation without replacing the operation's actual failure.
+            try {
+                currentCoroutineContext().ensureActive()
+            } catch (cancelled: CancellationException) {
+                failure.retainCancellation(cancelled)
+            }
+            throw failure
         } finally {
             // Awaiting an independently owned Deferred does not itself cancel that Deferred.
             // Stop its work and await finalizers even if the caller has already been cancelled.

@@ -299,6 +299,68 @@ internal class AsyncWorkSessionTest {
     }
 
     @Test
+    fun immediateRelatedFailureRetainsCallerCancellationAcrossAwait() = runTest {
+        assertImmediateFailureRetainsCancellation(IllegalStateException("immediate business failure"))
+    }
+
+    @Test
+    fun immediateRelatedFatalFailureRetainsCallerCancellationAcrossAwait() = runTest {
+        assertImmediateFailureRetainsCancellation(AssertionError("immediate fatal failure"))
+    }
+
+    private suspend fun TestScope.assertImmediateFailureRetainsCancellation(failure: Throwable) {
+        supervisorScope {
+            val dispatcher = UnconfinedTestDispatcher(testScheduler)
+            val cancellation = CancellationException("caller stopped during immediate failure")
+            val reports = mutableListOf<Throwable>()
+            var observed: Throwable? = null
+            var closed = 0
+            val session = AsyncWorkSession(
+                backgroundScope.coroutineContext + dispatcher,
+                AutoCloseable { closed++ },
+            ) { _, error -> reports += error }
+            val survivor = session.launchIndependent("unrelated") { awaitCancellation() }
+            // The operation fails before runRelated reaches await, bypassing its cancellation catch.
+            val caller = async(dispatcher, start = CoroutineStart.UNDISPATCHED) {
+                val callerContext = currentCoroutineContext()
+                try {
+                    session.runRelated(
+                        first = { callerContext.cancel(cancellation); throw failure },
+                        second = { 2 },
+                    )
+                } catch (error: Throwable) {
+                    observed = error
+                    throw error
+                }
+            }
+            try {
+                val awaited = assertFailsWith<Throwable> { caller.await() }
+                // Check both direct propagation and JVM recovery at another await boundary.
+                for (thrown in listOf(assertNotNull(observed), awaited)) {
+                    assertEquals(failure::class, thrown::class)
+                    assertTrue(thrown.containsReference(failure))
+                    assertTrue(thrown.containsReference(cancellation))
+                    assertAcyclicFailureGraph(thrown)
+                }
+                assertTrue(caller.isCompleted)
+                assertTrue(caller.isCancelled)
+                assertTrue(survivor.isActive)
+                assertTrue(reports.isEmpty())
+                assertEquals(SessionPhase.Active, session.phase.value)
+                withContext(dispatcher) {
+                    assertEquals(3 to 4, session.runRelated({ 3 }, { 4 }))
+                }
+            } finally {
+                caller.cancelAndJoin()
+                session.shutdown()
+            }
+            session.shutdown()
+            assertEquals(SessionPhase.Closed, session.phase.value)
+            assertEquals(1, closed)
+        }
+    }
+
+    @Test
     fun cancelledRelatedCallerReceivesCleanupFailureBeforeCancellation() = runTest {
         assertCancellationPreservesCleanupFailure(IllegalStateException("cleanup failed"))
     }

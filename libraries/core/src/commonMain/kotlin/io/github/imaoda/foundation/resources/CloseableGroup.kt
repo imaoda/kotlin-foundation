@@ -9,7 +9,8 @@ package io.github.imaoda.foundation.resources
  * groups. Borrowed dependencies must not be added.
  *
  * [close] enters the terminal state before invoking user code. It attempts every registered cleanup,
- * rethrows the first [Throwable], and attaches later distinct failures as suppressed exceptions.
+ * rethrows the first [Throwable], and attaches later failures as suppressed exceptions in first
+ * occurrence order, deduplicating by identity against that exception and its existing suppressed list.
  * Cancellation and fatal failures are not converted to success or wrapped. Reentrant or repeated
  * close calls do nothing, including while the first close is still running.
  */

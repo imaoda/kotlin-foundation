@@ -2,7 +2,9 @@ package io.github.imaoda.foundation.resources
 
 internal fun combineFailures(first: Throwable?, next: Throwable): Throwable {
     if (first == null) return next
-    if (first !== next) first.addSuppressed(next)
+    if (first !== next && first.suppressedExceptions.none { it === next }) {
+        first.addSuppressed(next)
+    }
     return first
 }
 

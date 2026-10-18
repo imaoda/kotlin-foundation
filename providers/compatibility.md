@@ -6,14 +6,14 @@
 
 ## 验证结果
 
-关联操作立即完成路径的取消修复后重新执行了 `:check`、`:examples:iosSimulatorArm64Test` 和 `:examples:compileKotlinIosArm64`，全部通过。示例在 JVM 与 iOS 模拟器均重新运行 23 项测试；根 `:check` 的未变更模块复用 Gradle 的 UP-TO-DATE 结果。新增的两项回归在未修复实现上均失败，修复后在两个平台均通过。下表其余范围保留同日基础验证记录，本次未重跑 Android 设备、core Native/Android 宿主、lint 或发布物消费测试。
+关联操作立即失败时保留调用方取消信息、同步清理异常按身份去重两处修复后，重新执行了 `:check`、`:core:testAndroidHostTest`、`:core:iosSimulatorArm64Test`、`:examples:iosSimulatorArm64Test` 和 `:examples:compileKotlinIosArm64`，全部通过。core 在 JVM、Android 宿主与 iOS 模拟器各重新运行 48 项测试，示例在 JVM 与 iOS 模拟器各重新运行 25 项，Android 消费端宿主重新运行 1 项；未变更的构建步骤复用 Gradle 的 UP-TO-DATE 结果。三项新增回归在未修复实现的 JVM 执行中均失败，修复后在对应平台均通过。下表其余范围保留同日基础验证记录，本次未重跑 Android 设备、lint 或发布物消费测试。
 
 | 检查范围 | 结果 | 证据与复现 |
 | --- | --- | --- |
-| core commonTest / JVM | 47 通过，无失败或跳过 | `:core:jvmTest` |
-| core commonTest / iOS 27.1 arm64 模拟器 | 47 通过，无失败或跳过 | `-PiosDevice=UDID :core:iosSimulatorArm64Test` |
-| core commonTest / Android 宿主 JVM | 47 通过，无失败或跳过 | `:core:testAndroidHostTest`；不是设备测试 |
-| 组合示例 / JVM、iOS 模拟器 | 每个平台 23 通过，无失败或跳过 | `:examples:jvmTest` / `:examples:iosSimulatorArm64Test` |
+| core commonTest / JVM | 48 通过，无失败或跳过 | `:core:jvmTest` |
+| core commonTest / iOS 27.1 arm64 模拟器 | 48 通过，无失败或跳过 | `-PiosDevice=UDID :core:iosSimulatorArm64Test` |
+| core commonTest / Android 宿主 JVM | 48 通过，无失败或跳过 | `:core:testAndroidHostTest`；不是设备测试 |
+| 组合示例 / JVM、iOS 模拟器 | 每个平台 25 通过，无失败或跳过 | `:examples:jvmTest` / `:examples:iosSimulatorArm64Test` |
 | iOS 真机架构 | core 与 examples 编译通过 | `:core:compileKotlinIosArm64 :examples:compileKotlinIosArm64`；未运行真机 |
 | Android 消费端宿主测试 / 构建 | 1 通过，AAR 构建通过 | `:android-consumer:testDebugUnitTest :android-consumer:assembleDebug` |
 | Android 17 / API 37 模拟器 | 3 设备测试通过，无失败或跳过 | `:android-consumer:connectedDebugAndroidTest`；生命周期、suppressed 异常、派发期间取消 |
@@ -27,7 +27,7 @@
 
 `:core:dependencies --configuration jvmRuntimeClasspath` 实际解析为 `kotlin-stdlib:2.4.21` 及其传递依赖 `org.jetbrains:annotations:13.0`。core 没有直接引入协程、UI 或其他业务运行时；声明检查不替代所有平台的传递依赖审计。
 
-示例验证了对象所有权与初始化回滚、动态订阅、SharedFlow 的无人订阅/背压行为、关联任务与监督隔离、调用方取消，以及异步任务结束后释放资源。关联操作回归覆盖任一子任务局部超时、取消期间普通与 fatal 清理失败优先、业务失败与取消竞争，以及跨另一层 async/await 后仍保留取消信息。立即完成路径新增两项回归：已取消调用方不启动工作，以及工作同步完成期间取消调用方仍传播取消；同时验证原取消原因、会话隔离和最终资源释放。测试不证明任意业务方法的重入安全或任意调度器下的并发安全。
+示例验证了对象所有权与初始化回滚、动态订阅、SharedFlow 的无人订阅/背压行为、关联任务与监督隔离、调用方取消，以及异步任务结束后释放资源。关联操作回归覆盖任一子任务局部超时、取消期间普通与 fatal 清理失败优先、业务失败与取消竞争，以及跨另一层 async/await 后仍保留取消信息。立即完成路径覆盖已取消调用方不启动工作、工作同步完成期间取消调用方仍传播取消，以及普通异常或 fatal error 在 await 前立即发生时仍保留调用方取消原因；同时验证异常图无环、跨另一层 await 的信息保留、会话隔离和最终资源释放。core 新增回归覆盖重复清理异常按身份去重、等值不同实例均保留、首次出现顺序和所有清理均被执行。测试不证明任意业务方法的重入安全或任意调度器下的并发安全。
 
 ## 边界
 
