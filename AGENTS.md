@@ -4,6 +4,7 @@ This is a Kotlin/KMP foundation for object-oriented **logic**, with an AI-readab
 
 - Discuss ambiguous goals and lasting API/dependency/behavior changes before implementation; execute agreed scope. Read-only investigations and uncontroversial reversible fixes need no extra approval.
 - Work on main by default. Preserve other changes. After relevant validation, commit all version-controlled changes and push origin/main. Never publish packages or change repository visibility without an explicit request.
+- The source repository is public. Package publication and GitHub Releases are on hold until the owner completes validation and explicitly authorizes a release. Local publication for verification remains allowed. The license is still undecided.
 - Preserve the selected Kotlin 2.4.21, Gradle 9.6.0, AGP 9.4.1, JDK 25 toolchain. Do not downgrade tools or dependencies to obtain a green build.
 - Core depends only on Kotlin stdlib. Reuse kotlinx.coroutines directly in examples. Do not add UI, DI, global event buses, custom Result/error-code frameworks, or coroutine ownership disguised as synchronous close.
 - Public resource protocol is AutoCloseable. A ManagedComponent owns synchronous resources only. Borrowed dependencies must not be owned. Value objects and stateless functions need no component base.

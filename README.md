@@ -19,7 +19,7 @@
 
 API 处于 `0.1.0-SNAPSHOT` 验证阶段，尚未发布 Maven Central。公共 API 变更通过 ABI 基线检查和行为测试审查；当前不承诺兼容其他 Kotlin 编译器版本。见 [开发与验证](guide/development.md)、[兼容性证据](providers/compatibility.md)。
 
-该仓库当前为私有工程；公开发布与许可证选择另行决定。
+源码仓库已公开，当前仅供验证，尚未发布依赖包或正式 Release。待维护者完成验证并明确确认后再发布；许可证选择另行决定。
 
 ## 结构
 
