@@ -9,15 +9,19 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -206,6 +210,92 @@ internal class AsyncWorkSessionTest {
                 session.shutdown()
             }
         }
+    }
+
+    @Test
+    fun alreadyCancelledRelatedCallerDoesNotStartImmediatelyCompletingWork() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val cancellation = CancellationException("caller already stopped")
+        val work = mutableListOf<String>()
+        val reports = mutableListOf<Throwable>()
+        var observed: CancellationException? = null
+        var closed = 0
+        val session = AsyncWorkSession(
+            backgroundScope.coroutineContext + dispatcher,
+            AutoCloseable { closed++ },
+        ) { _, failure -> reports += failure }
+        // Undispatched entry lets the session's unconfined work complete before await starts.
+        val caller = launch(dispatcher, start = CoroutineStart.UNDISPATCHED) {
+            currentCoroutineContext().cancel(cancellation)
+            try {
+                session.runRelated(
+                    first = { work += "first"; 1 },
+                    second = { work += "second"; 2 },
+                )
+            } catch (cancelled: CancellationException) {
+                observed = cancelled
+            }
+        }
+        try {
+            caller.join()
+            assertTrue(work.isEmpty())
+            val thrown = assertNotNull(observed)
+            assertEquals(cancellation.message, thrown.message)
+            assertTrue(thrown.containsReference(cancellation))
+            assertTrue(reports.isEmpty())
+            assertEquals(SessionPhase.Active, session.phase.value)
+            withContext(dispatcher) {
+                assertEquals(3 to 4, session.runRelated({ 3 }, { 4 }))
+            }
+        } finally {
+            caller.cancelAndJoin()
+            session.shutdown()
+        }
+        assertEquals(SessionPhase.Closed, session.phase.value)
+        assertEquals(1, closed)
+    }
+
+    @Test
+    fun cancellationDuringImmediatelyCompletingRelatedWorkDoesNotReturnSuccess() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val cancellation = CancellationException("caller stopped during work")
+        val work = mutableListOf<String>()
+        val reports = mutableListOf<Throwable>()
+        var observed: CancellationException? = null
+        var closed = 0
+        val session = AsyncWorkSession(
+            backgroundScope.coroutineContext + dispatcher,
+            AutoCloseable { closed++ },
+        ) { _, failure -> reports += failure }
+        // Both parts finish before the caller awaits the session-owned operation.
+        val caller = launch(dispatcher, start = CoroutineStart.UNDISPATCHED) {
+            val callerContext = currentCoroutineContext()
+            try {
+                session.runRelated(
+                    first = { callerContext.cancel(cancellation); work += "first"; 1 },
+                    second = { work += "second"; 2 },
+                )
+            } catch (cancelled: CancellationException) {
+                observed = cancelled
+            }
+        }
+        try {
+            caller.join()
+            assertEquals(listOf("first", "second"), work)
+            val thrown = assertNotNull(observed)
+            assertEquals(cancellation.message, thrown.message)
+            assertTrue(thrown.containsReference(cancellation))
+            assertTrue(reports.isEmpty())
+            assertEquals(SessionPhase.Active, session.phase.value)
+            withContext(dispatcher) {
+                assertEquals(3 to 4, session.runRelated({ 3 }, { 4 }))
+            }
+        } finally {
+            caller.cancelAndJoin()
+            session.shutdown()
+        }
+        assertEquals(SessionPhase.Closed, session.phase.value)
+        assertEquals(1, closed)
     }
 
     @Test

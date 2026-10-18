@@ -54,6 +54,7 @@ internal class AsyncWorkSession(
      * The caller observes this operation's failure. Both parts must succeed together;
      * a failure or local cancellation of either part cancels the other part.
      * A supervisor isolates the operation from other session operations, not its own parts.
+     * A caller already cancelled on entry starts no work.
      * Even when the caller is cancelled, this method waits for the operation and its children
      * to finish. A final non-cancellation failure takes precedence over caller cancellation;
      * cancellation is retained in the failure's cause/suppressed graph unless that would create a cycle.
@@ -66,6 +67,7 @@ internal class AsyncWorkSession(
         first: suspend () -> A,
         second: suspend () -> B,
     ): Pair<A, B> {
+        currentCoroutineContext().ensureActive()
         ensureAcceptingWork()
         val operation = scope.async {
             coroutineScope {
@@ -78,7 +80,10 @@ internal class AsyncWorkSession(
         }
         var cancellation: CancellationException? = null
         try {
-            return operation.await()
+            val result = operation.await()
+            // An already completed Deferred can return without checking caller cancellation.
+            currentCoroutineContext().ensureActive()
+            return result
         } catch (cancelled: CancellationException) {
             cancellation = cancelled
             throw cancelled
