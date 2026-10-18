@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+# ABI dumps preserve the Kotlin Gradle plugin's generated trailing separator.
+libraries/core/api/** whitespace=-blank-at-eof

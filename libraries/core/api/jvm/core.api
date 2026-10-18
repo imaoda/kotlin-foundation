@@ -1,0 +1,52 @@
+public abstract class io/github/imaoda/foundation/components/ManagedComponent : java/lang/AutoCloseable {
+	public fun <init> ()V
+	public final fun close ()V
+	protected final fun ensureOpen ()V
+	public final fun isClosed ()Z
+	protected final fun onClose (Lkotlin/jvm/functions/Function0;)V
+	protected final fun own (Ljava/lang/AutoCloseable;)Ljava/lang/AutoCloseable;
+}
+
+public final class io/github/imaoda/foundation/events/EventEmitter : java/lang/AutoCloseable {
+	public fun <init> (Lio/github/imaoda/foundation/events/ListenerFailurePolicy;)V
+	public fun close ()V
+	public final fun emit (Ljava/lang/Object;)V
+	public final fun getEvent ()Lio/github/imaoda/foundation/events/EventSource;
+}
+
+public abstract interface class io/github/imaoda/foundation/events/EventSource {
+	public abstract fun subscribe (Lkotlin/jvm/functions/Function1;)Ljava/lang/AutoCloseable;
+}
+
+public abstract class io/github/imaoda/foundation/events/ListenerFailurePolicy {
+}
+
+public final class io/github/imaoda/foundation/events/ListenerFailurePolicy$FailFast : io/github/imaoda/foundation/events/ListenerFailurePolicy {
+	public static final field INSTANCE Lio/github/imaoda/foundation/events/ListenerFailurePolicy$FailFast;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/imaoda/foundation/events/ListenerFailurePolicy$ReportAndContinue : io/github/imaoda/foundation/events/ListenerFailurePolicy {
+	public fun <init> (Lkotlin/jvm/functions/Function1;)V
+	public final fun getOnFailure ()Lkotlin/jvm/functions/Function1;
+}
+
+public final class io/github/imaoda/foundation/resources/CloseableGroup : java/lang/AutoCloseable {
+	public fun <init> ()V
+	public final fun add (Ljava/lang/AutoCloseable;)Ljava/lang/AutoCloseable;
+	public fun close ()V
+	public final fun isClosed ()Z
+	public final fun removeAndClose (Ljava/lang/AutoCloseable;)Z
+}
+
+public final class io/github/imaoda/foundation/resources/CloseableSlot : java/lang/AutoCloseable {
+	public fun <init> ()V
+	public final fun clear ()V
+	public fun close ()V
+	public final fun getValue ()Ljava/lang/AutoCloseable;
+	public final fun isClosed ()Z
+	public final fun setValue (Ljava/lang/AutoCloseable;)V
+}
+

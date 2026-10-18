@@ -1,0 +1,73 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <io.github.imaoda.foundation:core>
+abstract fun interface <#A: kotlin/Any?> io.github.imaoda.foundation.events/EventSource { // io.github.imaoda.foundation.events/EventSource|null[0]
+    abstract fun subscribe(kotlin/Function1<#A, kotlin/Unit>): kotlin/AutoCloseable // io.github.imaoda.foundation.events/EventSource.subscribe|subscribe(kotlin.Function1<1:0,kotlin.Unit>){}[0]
+}
+
+abstract class io.github.imaoda.foundation.components/ManagedComponent : kotlin/AutoCloseable { // io.github.imaoda.foundation.components/ManagedComponent|null[0]
+    constructor <init>() // io.github.imaoda.foundation.components/ManagedComponent.<init>|<init>(){}[0]
+
+    final val isClosed // io.github.imaoda.foundation.components/ManagedComponent.isClosed|{}isClosed[0]
+        final fun <get-isClosed>(): kotlin/Boolean // io.github.imaoda.foundation.components/ManagedComponent.isClosed.<get-isClosed>|<get-isClosed>(){}[0]
+
+    final fun <#A1: kotlin/AutoCloseable> own(#A1): #A1 // io.github.imaoda.foundation.components/ManagedComponent.own|own(0:0){0§<kotlin.AutoCloseable>}[0]
+    final fun close() // io.github.imaoda.foundation.components/ManagedComponent.close|close(){}[0]
+    final fun ensureOpen() // io.github.imaoda.foundation.components/ManagedComponent.ensureOpen|ensureOpen(){}[0]
+    final fun onClose(kotlin/Function0<kotlin/Unit>) // io.github.imaoda.foundation.components/ManagedComponent.onClose|onClose(kotlin.Function0<kotlin.Unit>){}[0]
+}
+
+final class <#A: kotlin/Any?> io.github.imaoda.foundation.events/EventEmitter : kotlin/AutoCloseable { // io.github.imaoda.foundation.events/EventEmitter|null[0]
+    constructor <init>(io.github.imaoda.foundation.events/ListenerFailurePolicy) // io.github.imaoda.foundation.events/EventEmitter.<init>|<init>(io.github.imaoda.foundation.events.ListenerFailurePolicy){}[0]
+
+    final val event // io.github.imaoda.foundation.events/EventEmitter.event|{}event[0]
+        final fun <get-event>(): io.github.imaoda.foundation.events/EventSource<#A> // io.github.imaoda.foundation.events/EventEmitter.event.<get-event>|<get-event>(){}[0]
+
+    final fun close() // io.github.imaoda.foundation.events/EventEmitter.close|close(){}[0]
+    final fun emit(#A) // io.github.imaoda.foundation.events/EventEmitter.emit|emit(1:0){}[0]
+}
+
+final class <#A: kotlin/AutoCloseable> io.github.imaoda.foundation.resources/CloseableSlot : kotlin/AutoCloseable { // io.github.imaoda.foundation.resources/CloseableSlot|null[0]
+    constructor <init>() // io.github.imaoda.foundation.resources/CloseableSlot.<init>|<init>(){}[0]
+
+    final val isClosed // io.github.imaoda.foundation.resources/CloseableSlot.isClosed|{}isClosed[0]
+        final fun <get-isClosed>(): kotlin/Boolean // io.github.imaoda.foundation.resources/CloseableSlot.isClosed.<get-isClosed>|<get-isClosed>(){}[0]
+
+    final var value // io.github.imaoda.foundation.resources/CloseableSlot.value|{}value[0]
+        final fun <get-value>(): #A? // io.github.imaoda.foundation.resources/CloseableSlot.value.<get-value>|<get-value>(){}[0]
+        final fun <set-value>(#A?) // io.github.imaoda.foundation.resources/CloseableSlot.value.<set-value>|<set-value>(1:0?){}[0]
+
+    final fun clear() // io.github.imaoda.foundation.resources/CloseableSlot.clear|clear(){}[0]
+    final fun close() // io.github.imaoda.foundation.resources/CloseableSlot.close|close(){}[0]
+}
+
+final class io.github.imaoda.foundation.resources/CloseableGroup : kotlin/AutoCloseable { // io.github.imaoda.foundation.resources/CloseableGroup|null[0]
+    constructor <init>() // io.github.imaoda.foundation.resources/CloseableGroup.<init>|<init>(){}[0]
+
+    final val isClosed // io.github.imaoda.foundation.resources/CloseableGroup.isClosed|{}isClosed[0]
+        final fun <get-isClosed>(): kotlin/Boolean // io.github.imaoda.foundation.resources/CloseableGroup.isClosed.<get-isClosed>|<get-isClosed>(){}[0]
+
+    final fun <#A1: kotlin/AutoCloseable> add(#A1): #A1 // io.github.imaoda.foundation.resources/CloseableGroup.add|add(0:0){0§<kotlin.AutoCloseable>}[0]
+    final fun close() // io.github.imaoda.foundation.resources/CloseableGroup.close|close(){}[0]
+    final fun removeAndClose(kotlin/AutoCloseable): kotlin/Boolean // io.github.imaoda.foundation.resources/CloseableGroup.removeAndClose|removeAndClose(kotlin.AutoCloseable){}[0]
+}
+
+sealed class io.github.imaoda.foundation.events/ListenerFailurePolicy { // io.github.imaoda.foundation.events/ListenerFailurePolicy|null[0]
+    final class ReportAndContinue : io.github.imaoda.foundation.events/ListenerFailurePolicy { // io.github.imaoda.foundation.events/ListenerFailurePolicy.ReportAndContinue|null[0]
+        constructor <init>(kotlin/Function1<kotlin/Throwable, kotlin/Unit>) // io.github.imaoda.foundation.events/ListenerFailurePolicy.ReportAndContinue.<init>|<init>(kotlin.Function1<kotlin.Throwable,kotlin.Unit>){}[0]
+
+        final val onFailure // io.github.imaoda.foundation.events/ListenerFailurePolicy.ReportAndContinue.onFailure|{}onFailure[0]
+            final fun <get-onFailure>(): kotlin/Function1<kotlin/Throwable, kotlin/Unit> // io.github.imaoda.foundation.events/ListenerFailurePolicy.ReportAndContinue.onFailure.<get-onFailure>|<get-onFailure>(){}[0]
+    }
+
+    final object FailFast : io.github.imaoda.foundation.events/ListenerFailurePolicy { // io.github.imaoda.foundation.events/ListenerFailurePolicy.FailFast|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // io.github.imaoda.foundation.events/ListenerFailurePolicy.FailFast.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // io.github.imaoda.foundation.events/ListenerFailurePolicy.FailFast.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // io.github.imaoda.foundation.events/ListenerFailurePolicy.FailFast.toString|toString(){}[0]
+    }
+}
