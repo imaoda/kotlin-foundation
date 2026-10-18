@@ -1,17 +1,19 @@
 # 兼容性与验证证据
 
-本页记录本次本地实际命令的结果，不代表持续集成或完整支持矩阵。复现入口见 [开发说明](../guide/development.md)。
+本页记录本地实际验证结果，不代表持续集成或完整支持矩阵。复现入口见 [开发说明](../guide/development.md)。
 
 日期：2026-10-19。配置：Kotlin 2.4.21、Gradle 9.6.0、AGP 9.4.1、JDK 25、coroutines 1.9.0、Android compileSdk 37 / minSdk 28。当前本机 Xcode 27.1 / iOS 27.1。
 
-## 本次结果
+## 验证结果
+
+关联操作取消修复后重新执行了 `:check`、`:examples:iosSimulatorArm64Test` 和 `:examples:compileKotlinIosArm64`，全部通过。示例在 JVM 与 iOS 模拟器均重新运行 21 项测试；根 `:check` 的未变更模块可复用 Gradle 的 UP-TO-DATE 结果。下表其余范围保留同日基础验证记录，本次未重跑 Android 设备、core Native/Android 宿主、lint 或发布物消费测试。
 
 | 检查范围 | 结果 | 证据与复现 |
 | --- | --- | --- |
 | core commonTest / JVM | 47 通过，无失败或跳过 | `:core:jvmTest` |
 | core commonTest / iOS 27.1 arm64 模拟器 | 47 通过，无失败或跳过 | `-PiosDevice=UDID :core:iosSimulatorArm64Test` |
 | core commonTest / Android 宿主 JVM | 47 通过，无失败或跳过 | `:core:testAndroidHostTest`；不是设备测试 |
-| 组合示例 / JVM、iOS 模拟器 | 每个平台 16 通过，无失败或跳过 | `:examples:jvmTest` / `:examples:iosSimulatorArm64Test` |
+| 组合示例 / JVM、iOS 模拟器 | 每个平台 21 通过，无失败或跳过 | `:examples:jvmTest` / `:examples:iosSimulatorArm64Test` |
 | iOS 真机架构 | core 与 examples 编译通过 | `:core:compileKotlinIosArm64 :examples:compileKotlinIosArm64`；未运行真机 |
 | Android 消费端宿主测试 / 构建 | 1 通过，AAR 构建通过 | `:android-consumer:testDebugUnitTest :android-consumer:assembleDebug` |
 | Android 17 / API 37 模拟器 | 3 设备测试通过，无失败或跳过 | `:android-consumer:connectedDebugAndroidTest`；生命周期、suppressed 异常、派发期间取消 |
@@ -25,7 +27,7 @@
 
 `:core:dependencies --configuration jvmRuntimeClasspath` 实际解析为 `kotlin-stdlib:2.4.21` 及其传递依赖 `org.jetbrains:annotations:13.0`。core 没有直接引入协程、UI 或其他业务运行时；声明检查不替代所有平台的传递依赖审计。
 
-示例验证了对象所有权与初始化回滚、动态订阅、SharedFlow 的无人订阅/背压行为、关联任务与监督隔离、调用方取消，以及异步任务结束后释放资源。测试不证明任意业务方法的重入安全或任意调度器下的并发安全。
+示例验证了对象所有权与初始化回滚、动态订阅、SharedFlow 的无人订阅/背压行为、关联任务与监督隔离、调用方取消，以及异步任务结束后释放资源。关联操作新增 5 项回归测试，覆盖任一子任务局部超时、取消期间普通与 fatal 清理失败优先、业务失败与取消竞争，以及跨另一层 async/await 后仍保留取消信息。测试不证明任意业务方法的重入安全或任意调度器下的并发安全。
 
 ## 边界
 

@@ -1,6 +1,7 @@
 package io.github.imaoda.foundation.examples
 
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -8,6 +9,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
@@ -49,11 +51,16 @@ internal class AsyncWorkSession(
     }
 
     /**
-     * The caller observes this operation's failure. Both parts must succeed together.
+     * The caller observes this operation's failure. Both parts must succeed together;
+     * a failure or local cancellation of either part cancels the other part.
      * A supervisor isolates the operation from other session operations, not its own parts.
      * Even when the caller is cancelled, this method waits for the operation and its children
-     * to finish before propagating cancellation. Uncooperative work or finalizers can delay
-     * that completion barrier indefinitely; the operation is not left running after return.
+     * to finish. A final non-cancellation failure takes precedence over caller cancellation;
+     * cancellation is retained in the failure's cause/suppressed graph unless that would create a cycle.
+     * Otherwise the original cancellation propagates, even if the operation completed normally.
+     * Uncooperative work or finalizers can delay that completion barrier indefinitely; the
+     * operation is not left running after return. Observed failures are not also reported as
+     * independent background failures.
      */
     suspend fun <A, B> runRelated(
         first: suspend () -> A,
@@ -64,15 +71,32 @@ internal class AsyncWorkSession(
             coroutineScope {
                 val left = async { first() }
                 val right = async { second() }
+                // Local cancellation does not fail the parent: observe both parts immediately.
+                awaitAll(left, right)
                 left.await() to right.await()
             }
         }
+        var cancellation: CancellationException? = null
         try {
             return operation.await()
+        } catch (cancelled: CancellationException) {
+            cancellation = cancelled
+            throw cancelled
         } finally {
             // Awaiting an independently owned Deferred does not itself cancel that Deferred.
             // Stop its work and await finalizers even if the caller has already been cancelled.
             withContext(NonCancellable) { operation.cancelAndJoin() }
+            cancellation?.let { cancelled ->
+                // The job is complete, so this handler reads its final cause immediately.
+                // Joining alone cannot expose a work/cleanup failure hidden by a cancelled await.
+                var completionFailure: Throwable? = null
+                operation.invokeOnCompletion { completionFailure = it }
+                val failure = completionFailure
+                if (failure != null && failure !is CancellationException) {
+                    failure.retainCancellation(cancelled)
+                    throw failure
+                }
+            }
         }
     }
 
@@ -102,4 +126,35 @@ internal class AsyncWorkSession(
             "The session no longer accepts work"
         }
     }
+}
+
+private fun Throwable.retainCancellation(cancellation: CancellationException) {
+    if (containsFailure(cancellation)) return
+    // JVM coroutine recovery replaces same-type wrappers at later suspension boundaries. Attach
+    // diagnostics to their deepest matching cause; keep the exception we propagate unchanged.
+    var target = this
+    val visited = mutableListOf<Throwable>()
+    while (true) {
+        visited.add(target)
+        val cause = target.cause ?: break
+        if (cause::class != target::class || visited.any { it === cause }) break
+        target = cause
+    }
+    if (!cancellation.containsFailure(target)) target.addSuppressed(cancellation)
+}
+
+// Exceptions can already reference each other through causes or suppressed failures, including
+// JVM stack-trace recovery copies. Preserve those links without adding duplicates or a new cycle.
+private fun Throwable.containsFailure(target: Throwable): Boolean {
+    val pending = mutableListOf(this)
+    val visited = mutableListOf<Throwable>()
+    while (pending.isNotEmpty()) {
+        val failure = pending.removeAt(pending.lastIndex)
+        if (failure === target) return true
+        if (visited.any { it === failure }) continue
+        visited.add(failure)
+        failure.cause?.let(pending::add)
+        pending.addAll(failure.suppressedExceptions)
+    }
+    return false
 }

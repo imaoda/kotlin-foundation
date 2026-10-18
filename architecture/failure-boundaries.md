@@ -10,6 +10,7 @@
 | 外部接口抛出的已知异常 | 在适当边界捕获并映射，保留必要原因 |
 | 普通或 suspend 调用中的意外异常 | 沿调用链传播，由调用者观察；不逐层重复上报 |
 | 协程取消 | 保持取消传播，不自动重试，也不转为普通业务失败 |
+| 关联操作取消期间出现非取消异常 | 等待操作及清理结束后，以实际非取消失败为主因并保留取消信息；仅取消时仍传播取消 |
 | 独立后台工作没有调用者接收的异常 | 在明确监督边界报告一次，并由业务决定后续状态 |
 | 同步资源清理失败 | 继续尝试剩余清理，保留原始异常和 suppressed 异常 |
 
@@ -17,7 +18,9 @@
 
 [`CoroutineExceptionHandler`](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-exception-handler/) 是无正常传播路径的异常出口，不是可以恢复已失败协程的 try/catch。在任意子协程上放置它，不能建立新的隔离边界。
 
-[AsyncWorkSession](../examples/src/commonMain/kotlin/io/github/imaoda/foundation/examples/AsyncWorkSession.kt) 明确区分两种工作：独立后台任务使用 `SupervisorJob` 和应用传入的报告回调；关联任务在同一次 `coroutineScope` 中共同成功或失败，经 `await` 交还调用者，不再作为无人处理的故障上报。示例不保证每个项目的工作都适合监督隔离。
+[AsyncWorkSession](../examples/src/commonMain/kotlin/io/github/imaoda/foundation/examples/AsyncWorkSession.kt) 明确区分两种工作：独立后台任务使用 `SupervisorJob` 和应用传入的报告回调；关联任务在同一次 `coroutineScope` 中共同成功或失败，同时观察两项的完成状态，任一项局部取消或超时也会取消另一项并等待它退出。关联操作的异常沿调用链交还调用者，不再作为无人处理的故障上报。
+
+调用者取消后，关联操作仍须完成本次工作与清理，并观察最终异常；不能仅等待 `cancelAndJoin()`，因为等待完成不等于观察 `Deferred` 的最终失败。若最终存在非取消异常，则优先传播该异常并保留取消信息；否则保持取消传播。真实异常可能来自清理，也可能来自与取消竞争的工作本体，不凭异常来源猜测过滤。调用者未处理此失败时，仍可能影响调用者的父任务树；会话内的 `SupervisorJob` 只隔离其他会话操作。完成等待没有时间上限，详见 [异步关闭实践](../practices/asynchronous-shutdown.md)。示例不保证每个项目的工作都适合监督隔离。
 
 ## 同步事件必须选择失败策略
 
